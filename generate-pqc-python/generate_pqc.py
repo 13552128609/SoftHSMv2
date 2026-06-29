@@ -50,46 +50,54 @@ mech = CK_MECHANISM(CKM_ML_DSA_KEY_PAIR_GEN, None, 0)
 
 # 公钥模板 (CKA_TOKEN=True, CKA_VERIFY=True, CKA_LABEL="Jacob_PQ_Sign_Key", CKA_ID=0x0001)
 label = b"Jacob_PQ_Sign_Key"
+# 1. 准备基础数据
 key_id = b"\x00\x01"
+label_bytes = label.encode('utf-8') if isinstance(label, str) else label
+
+# 2. 强行锁定底层 C 数据对象的生命周期（放在最外层作用域，绝对不释放）
 true_val = ctypes.c_bool(True)
+false_val = ctypes.c_bool(False)
 param_set = ctypes.c_ulong(CKP_ML_DSA_44)
 
-pub_tmpl = (CK_ATTRIBUTE * 5)(
-    CK_ATTRIBUTE(CKA_TOKEN, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), 1),
-    CK_ATTRIBUTE(CKA_VERIFY, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), 1),
-    CK_ATTRIBUTE(CKA_LABEL, ctypes.cast(ctypes.create_string_buffer(label), ctypes.c_void_p), len(label)),
-    CK_ATTRIBUTE(CKA_ID, ctypes.cast(ctypes.create_string_buffer(key_id), ctypes.c_void_p), len(key_id)),
-    CK_ATTRIBUTE(CKA_PARAMETER_SET, ctypes.cast(ctypes.byref(param_set), ctypes.c_void_p), ctypes.sizeof(param_set))
-)
+pub_label_buf  = ctypes.create_string_buffer(label_bytes)
+pub_id_buf     = ctypes.create_string_buffer(key_id)
+priv_label_buf = ctypes.create_string_buffer(label_bytes)
+priv_id_buf    = ctypes.create_string_buffer(key_id)
 
-# 私钥模板 (CKA_TOKEN=True, CKA_SIGN=True, CKA_SENSITIVE=True, CKA_EXTRACTABLE=False)
-false_val = ctypes.c_bool(False)
-priv_tmpl = (CK_ATTRIBUTE * 6)(
-    CK_ATTRIBUTE(CKA_TOKEN, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), 1),
-    CK_ATTRIBUTE(CKA_SIGN, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), 1),
-    CK_ATTRIBUTE(CKA_SENSITIVE, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), 1),
-    CK_ATTRIBUTE(CKA_EXTRACTABLE, ctypes.cast(ctypes.byref(false_val), ctypes.c_void_p), 1),
-    CK_ATTRIBUTE(CKA_LABEL, ctypes.cast(ctypes.create_string_buffer(label), ctypes.c_void_p), len(label)),
-    CK_ATTRIBUTE(CKA_ID, ctypes.cast(ctypes.create_string_buffer(key_id), ctypes.c_void_p), len(key_id)),
-)
+# 3. 显式创建公钥模板数组（先不填入指针，防止初始化时发生 GC 错位）
+pub_tmpl = (CK_ATTRIBUTE * 5)()
+pub_tmpl[0] = CK_ATTRIBUTE(CKA_TOKEN, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), ctypes.sizeof(true_val))
+pub_tmpl[1] = CK_ATTRIBUTE(CKA_VERIFY, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), ctypes.sizeof(true_val))
+pub_tmpl[2] = CK_ATTRIBUTE(CKA_LABEL, ctypes.cast(pub_label_buf, ctypes.c_void_p), len(label_bytes))
+pub_tmpl[3] = CK_ATTRIBUTE(CKA_ID, ctypes.cast(pub_id_buf, ctypes.c_void_p), len(key_id))
+pub_tmpl[4] = CK_ATTRIBUTE(CKA_PARAMETER_SET, ctypes.cast(ctypes.byref(param_set), ctypes.c_void_p), ctypes.sizeof(param_set))
 
-# 7. 孕育密钥
-pub_handle = ctypes.c_ulong()
-priv_handle = ctypes.c_ulong()
+# 4. 显式创建私钥模板数组
+priv_tmpl = (CK_ATTRIBUTE * 6)()
+priv_tmpl[0] = CK_ATTRIBUTE(CKA_TOKEN, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), ctypes.sizeof(true_val))
+priv_tmpl[1] = CK_ATTRIBUTE(CKA_SIGN, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), ctypes.sizeof(true_val))
+priv_tmpl[2] = CK_ATTRIBUTE(CKA_SENSITIVE, ctypes.cast(ctypes.byref(true_val), ctypes.c_void_p), ctypes.sizeof(true_val))
+priv_tmpl[3] = CK_ATTRIBUTE(CKA_EXTRACTABLE, ctypes.cast(ctypes.byref(false_val), ctypes.c_void_p), ctypes.sizeof(false_val))
+priv_tmpl[4] = CK_ATTRIBUTE(CKA_LABEL, ctypes.cast(priv_label_buf, ctypes.c_void_p), len(label_bytes))
+priv_tmpl[5] = CK_ATTRIBUTE(CKA_ID, ctypes.cast(priv_id_buf, ctypes.c_void_p), len(key_id)) # 👈 显式安全绑定
+
+# 5. 执行生成（此时所有底层的 buffer 变量在当前 scope 都是强引用的，100% 不会被回收）
+pub_key_handle = ctypes.c_ulong()
+priv_key_handle = ctypes.c_ulong()
 
 res = lib.C_GenerateKeyPair(
     session, 
     ctypes.byref(mech), 
     ctypes.byref(pub_tmpl), 5, 
-    ctypes.byref(priv_tmpl), 5, 
-    ctypes.byref(pub_handle), 
-    ctypes.byref(priv_handle)
+    ctypes.byref(priv_tmpl), 6, 
+    ctypes.byref(pub_key_handle), 
+    ctypes.byref(priv_key_handle)
 )
 
 if res == 0:
     print("🎉 奇迹发生！Raw C 调用成功！")
     print(f"-> ML-DSA-44 密钥对已经在 SoftHSM 安全隔离区内直接生成！")
-    print(f"-> 公钥句柄: {pub_handle.value}, 私钥句柄: {priv_handle.value}")
+    print(f"-> 公钥句柄: {pub_key_handle.value}, 私钥句柄: {priv_key_handle.value}")
 else:
     print(f"❌ 芯片内部生成失败，SoftHSM 返回错误码: {hex(res)}")
 

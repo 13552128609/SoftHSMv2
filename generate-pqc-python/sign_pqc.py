@@ -67,7 +67,7 @@ try:
     # 7. Find private key created by generate_pqc.py
     #label = b"Jacob_PQ_Sign_Key"
     label = b"Jacob_PQ_Sign_Key"
-    key_id = b"\x00\x01"    
+    key_id = b"\x00\x01"
 
 # 显式创建变量，锁定内存，防止被 Python 的 GC 自动回收
     obj_class = ctypes.c_ulong(CKO_PRIVATE_KEY)
@@ -76,9 +76,9 @@ try:
 
     attr_class = CK_ATTRIBUTE(CKA_CLASS, ctypes.cast(ctypes.byref(obj_class), ctypes.c_void_p), ctypes.sizeof(obj_class))
     attr_label = CK_ATTRIBUTE(CKA_LABEL, ctypes.cast(label_buffer, ctypes.c_void_p), len(label))
-    #attr_id = CK_ATTRIBUTE(CKA_ID, ctypes.cast(id_buffer, ctypes.c_void_p), len(key_id))
+    attr_id = CK_ATTRIBUTE(CKA_ID, ctypes.cast(id_buffer, ctypes.c_void_p), len(key_id))
 
-    template = (CK_ATTRIBUTE * 2)(attr_class, attr_label)
+    template = (CK_ATTRIBUTE * 3)(attr_class, attr_label, attr_id)
 
 
     # obj_class = ctypes.c_ulong(CKO_PRIVATE_KEY)
@@ -88,7 +88,7 @@ try:
 
     # template = (CK_ATTRIBUTE * 3)(attr_class, attr_label, attr_id)
 
-    rv = lib.C_FindObjectsInit(session, ctypes.byref(template), 2)
+    rv = lib.C_FindObjectsInit(session, ctypes.byref(template), 3)
     if rv != 0:
         raise SystemExit(f"C_FindObjectsInit failed: 0x{rv:x}")
 
