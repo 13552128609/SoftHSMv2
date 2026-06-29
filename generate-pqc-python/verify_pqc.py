@@ -1,5 +1,6 @@
 import ctypes
 import os
+import binascii
 
 # 1. Load SoftHSM PKCS#11 library
 lib = ctypes.CDLL('/usr/local/lib/softhsm/libsofthsm2.so')
@@ -39,9 +40,13 @@ class CK_MECHANISM(ctypes.Structure):
     ]
 
 
-def read_file(path: str) -> bytes:
-    with open(path, "rb") as f:
-        return f.read()
+def read_hex_file(path: str) -> bytes:
+    """Read ASCII hex file and return raw bytes."""
+    with open(path, "r", encoding="ascii") as f:
+        hex_str = f.read().strip()
+    if not hex_str:
+        return b""
+    return binascii.unhexlify(hex_str)
 
 
 # 3. Initialize library
@@ -107,8 +112,8 @@ try:
     if not os.path.exists(sig_path):
         raise SystemExit(f"Signature file not found: {sig_path}")
 
-    message = read_file(msg_path)
-    signature = read_file(sig_path)
+    message = read_hex_file(msg_path)
+    signature = read_hex_file(sig_path)
 
     print(f"[verify_pqc] Read message ({len(message)} bytes) and signature ({len(signature)} bytes)")
 

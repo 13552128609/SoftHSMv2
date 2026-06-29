@@ -1,4 +1,5 @@
 import ctypes
+import binascii
 
 # 1. Load SoftHSM PKCS#11 library
 lib = ctypes.CDLL('/usr/local/lib/softhsm/libsofthsm2.so')
@@ -107,11 +108,11 @@ try:
     print(f"[sign_pqc] Found private key handle: {priv_handle.value}")
 
     # 8. Prepare data to sign
-    message = b"Hello ML-DSA from SoftHSM!"
+    message = b"Hello ML-DSA from SoftHSM (Jacob)!"
 
-    # Save message to file
-    with open("message.bin", "wb") as f:
-        f.write(message)
+    # Save message to file as hex text
+    with open("message.bin", "w", encoding="ascii") as f:
+        f.write(binascii.hexlify(message).decode("ascii"))
 
     # 9. Setup signing mechanism (ML-DSA-44)
     mech = CK_MECHANISM(CKM_ML_DSA_44, None, 0)
@@ -134,9 +135,9 @@ try:
 
     signature = bytes(sig_buf[: sig_len.value])
 
-    # Save signature to file
-    with open("signature.bin", "wb") as f:
-        f.write(signature)
+    # Save signature to file as hex text
+    with open("signature.bin", "w", encoding="ascii") as f:
+        f.write(binascii.hexlify(signature).decode("ascii"))
 
     print(f"[sign_pqc] Signature generated, length = {sig_len.value} bytes")
     print("[sign_pqc] message.bin and signature.bin written in current directory")
