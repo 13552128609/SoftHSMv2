@@ -869,6 +869,9 @@ void SoftHSM::prepareSupportedMechanisms(std::map<std::string, CK_MECHANISM_TYPE
 #ifdef WITH_ML_DSA
 	t["CKM_ML_DSA_KEY_PAIR_GEN"] = CKM_ML_DSA_KEY_PAIR_GEN;
 	t["CKM_ML_DSA"]			= CKM_ML_DSA;
+	t["CKM_ML_DSA_44"]		= CKM_ML_DSA_44;
+	t["CKM_ML_DSA_65"]		= CKM_ML_DSA_65;
+	t["CKM_ML_DSA_87"]		= CKM_ML_DSA_87;
 #endif
 #ifdef WITH_ML_KEM
 	t["CKM_ML_KEM_KEY_PAIR_GEN"] = CKM_ML_KEM_KEY_PAIR_GEN;
@@ -1405,6 +1408,9 @@ CK_RV SoftHSM::C_GetMechanismInfo(CK_SLOT_ID slotID, CK_MECHANISM_TYPE type, CK_
 			pInfo->flags = CKF_GENERATE_KEY_PAIR;
 			break;
 		case CKM_ML_DSA:
+		case CKM_ML_DSA_44:
+		case CKM_ML_DSA_65:
+		case CKM_ML_DSA_87:
 			pInfo->ulMinKeySize = mldsaMinSize;
 			pInfo->ulMaxKeySize = mldsaMaxSize;
 			pInfo->flags = CKF_SIGN | CKF_VERIFY;
@@ -4309,6 +4315,7 @@ CK_RV SoftHSM::AsymSignInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechan
 #endif
 #ifdef WITH_ML_DSA
 	bool isMLDSA = false;
+	CK_ULONG mldsaRequiredParameterSet = 0;
 	MLDSAMechanismParam mldsaParam;
 #endif
 	switch(pMechanism->mechanism) {
@@ -4574,6 +4581,17 @@ CK_RV SoftHSM::AsymSignInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechan
 			break;
 #endif
 #ifdef WITH_ML_DSA
+		case CKM_ML_DSA_44:
+			mldsaRequiredParameterSet = CKP_ML_DSA_44;
+			/* FALLTHROUGH */
+		case CKM_ML_DSA_65:
+			if (mldsaRequiredParameterSet == 0)
+				mldsaRequiredParameterSet = CKP_ML_DSA_65;
+			/* FALLTHROUGH */
+		case CKM_ML_DSA_87:
+			if (mldsaRequiredParameterSet == 0)
+				mldsaRequiredParameterSet = CKP_ML_DSA_87;
+			/* FALLTHROUGH */
 		case CKM_ML_DSA:
 			mechanism = AsymMech::MLDSA;
 			bAllowMultiPartOp = true;
@@ -4734,6 +4752,12 @@ CK_RV SoftHSM::AsymSignInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechan
 			asymCrypto->recyclePrivateKey(privateKey);
 			CryptoFactory::i()->recycleAsymmetricAlgorithm(asymCrypto);
 			return CKR_GENERAL_ERROR;
+		}
+		if (mldsaRequiredParameterSet != 0 && ((MLDSAPrivateKey*)privateKey)->getParameterSet() != mldsaRequiredParameterSet)
+		{
+			asymCrypto->recyclePrivateKey(privateKey);
+			CryptoFactory::i()->recycleAsymmetricAlgorithm(asymCrypto);
+			return CKR_KEY_TYPE_INCONSISTENT;
 		}
 	}
 #endif
@@ -5399,6 +5423,7 @@ CK_RV SoftHSM::AsymVerifyInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMech
 #endif
 #ifdef WITH_ML_DSA
 	bool isMLDSA = false;
+	CK_ULONG mldsaRequiredParameterSet = 0;
 	MLDSAMechanismParam mldsaParam;
 #endif
 	switch(pMechanism->mechanism) {
@@ -5663,6 +5688,17 @@ CK_RV SoftHSM::AsymVerifyInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMech
 			break;
 #endif
 #ifdef WITH_ML_DSA
+		case CKM_ML_DSA_44:
+			mldsaRequiredParameterSet = CKP_ML_DSA_44;
+			/* FALLTHROUGH */
+		case CKM_ML_DSA_65:
+			if (mldsaRequiredParameterSet == 0)
+				mldsaRequiredParameterSet = CKP_ML_DSA_65;
+			/* FALLTHROUGH */
+		case CKM_ML_DSA_87:
+			if (mldsaRequiredParameterSet == 0)
+				mldsaRequiredParameterSet = CKP_ML_DSA_87;
+			/* FALLTHROUGH */
 		case CKM_ML_DSA:
 			mechanism = AsymMech::MLDSA;
 			bAllowMultiPartOp = false;
@@ -5823,6 +5859,12 @@ CK_RV SoftHSM::AsymVerifyInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMech
 			asymCrypto->recyclePublicKey(publicKey);
 			CryptoFactory::i()->recycleAsymmetricAlgorithm(asymCrypto);
 			return CKR_GENERAL_ERROR;
+		}
+		if (mldsaRequiredParameterSet != 0 && ((MLDSAPublicKey*)publicKey)->getParameterSet() != mldsaRequiredParameterSet)
+		{
+			asymCrypto->recyclePublicKey(publicKey);
+			CryptoFactory::i()->recycleAsymmetricAlgorithm(asymCrypto);
+			return CKR_KEY_TYPE_INCONSISTENT;
 		}
 	}
 #endif

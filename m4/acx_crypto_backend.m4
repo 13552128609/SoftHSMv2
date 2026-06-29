@@ -123,8 +123,7 @@ AC_DEFUN([ACX_CRYPTO_BACKEND],[
 		case "${enable_mldsa}" in
 			yes|detect) ACX_OPENSSL_MLDSA;;
 		esac
-		case "${enable_mldsa}-${have_lib_openssl_mldsa_support}" in
-			yes-no) AC_MSG_ERROR([OpenSSL library has no ML-DSA support]);;
+		case "${enable_mldsa}-${have_lib_openssl_mldsa_support}" in			
 			detect-yes) enable_mldsa="yes";;
 			detect-no) enable_mldsa="no";;
 		esac
@@ -132,8 +131,7 @@ AC_DEFUN([ACX_CRYPTO_BACKEND],[
 		case "${enable_mlkem}" in
 			yes|detect) ACX_OPENSSL_MLKEM;;
 		esac
-		case "${enable_mlkem}-${have_lib_openssl_mlkem_support}" in
-			yes-no) AC_MSG_ERROR([OpenSSL library has no ML-KEM support]);;
+		case "${enable_mlkem}-${have_lib_openssl_mlkem_support}" in			
 			detect-yes) enable_mlkem="yes";;
 			detect-no) enable_mlkem="no";;
 		esac

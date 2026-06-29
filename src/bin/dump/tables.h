@@ -482,6 +482,9 @@ void fill_CKM_table(std::map<unsigned long, std::string> &t)
 	t[CKM_EDDSA] = "CKM_EDDSA";
 	t[CKM_ML_DSA_KEY_PAIR_GEN] = "CKM_ML_DSA_KEY_PAIR_GEN";
 	t[CKM_ML_DSA] = "CKM_ML_DSA";
+	t[CKM_ML_DSA_44] = "CKM_ML_DSA_44";
+	t[CKM_ML_DSA_65] = "CKM_ML_DSA_65";
+	t[CKM_ML_DSA_87] = "CKM_ML_DSA_87";
 	t[CKM_ML_KEM_KEY_PAIR_GEN] = "CKM_ML_KEM_KEY_PAIR_GEN";
 	t[CKM_ML_KEM] = "CKM_ML_KEM";
 }
